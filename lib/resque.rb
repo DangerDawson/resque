@@ -6,6 +6,13 @@ rescue LoadError
   require 'json'
 end
 
+require 'em-redis'
+require 'fiber'
+require 'eventmachine'
+require 'ruby-debug'
+
+require 'resque/fibered_redis'
+
 require 'resque/version'
 
 require 'resque/errors'
@@ -17,6 +24,8 @@ require 'resque/helpers'
 require 'resque/stat'
 require 'resque/job'
 require 'resque/worker'
+require 'resque/em-loop'
+require 'resque/evented_worker'
 require 'resque/plugin'
 
 module Resque
@@ -26,16 +35,15 @@ module Resque
   # Accepts:
   #   1. A 'hostname:port' string
   #   2. A 'hostname:port:db' string (to select the Redis db)
-  #   3. An instance of `Redis`, `Redis::Client`, `Redis::DistRedis`,
-  #      or `Redis::Namespace`.
+  #   3. An instance of `Redis`, `Redis::Client`, or `Redis::Namespace`.
   def redis=(server)
     case server
     when String
       host, port, db = server.split(':')
-      redis = Redis.new(:host => host, :port => port,
+      redis = FiberedRedis.new(:host => host, :port => port,
         :thread_safe => true, :db => db)
       @redis = Redis::Namespace.new(:resque, :redis => redis)
-    when Redis, Redis::Client, Redis::DistRedis
+    when Redis, Redis::Client
       @redis = Redis::Namespace.new(:resque, :redis => server)
     when Redis::Namespace
       @redis = server
